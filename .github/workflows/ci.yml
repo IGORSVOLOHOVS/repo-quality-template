@@ -59,16 +59,34 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
 
-      - name: Run tests with coverage (Linux)
+      # --cov-fail-under=0 disables the threshold *here* deliberately. This
+      # matrix proves the tests pass on every platform; the coverage gate is
+      # enforced once, in the `coverage` job below. Without this, a runner whose
+      # Tcl/Tk install is incomplete skips the GUI tests and then fails the whole
+      # matrix on a coverage number that says nothing about the code.
+      - name: Run tests (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run -a pytest --cov --cov-report=xml --cov-report=term
+        run: xvfb-run -a pytest --cov --cov-report=term --cov-fail-under=0
 
-      - name: Run tests with coverage (Windows)
+      - name: Run tests (Windows)
         if: runner.os == 'Windows'
-        run: pytest --cov --cov-report=xml --cov-report=term
-      - name: Upload coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
-        uses: actions/upload-artifact@v4
+        run: pytest --cov --cov-report=term --cov-fail-under=0
+
+  coverage:
+    name: Coverage gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements-dev.lock && pip install -e .
+      - name: Install a virtual display
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
+      - name: Enforce the coverage threshold
+        run: xvfb-run -a pytest --cov --cov-report=xml --cov-report=term
+      - uses: actions/upload-artifact@v4
         with:
           name: coverage
           path: coverage.xml
@@ -88,7 +106,7 @@ jobs:
   quality:
     name: ISO/IEC 25010 metrics
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [test, coverage]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

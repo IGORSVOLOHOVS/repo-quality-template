@@ -11,7 +11,9 @@ code under test.
 
 from __future__ import annotations
 
+import contextlib
 import tkinter as tk
+from tkinter import ttk
 
 import pytest
 
@@ -21,16 +23,31 @@ _DISPLAY: bool | None = None
 
 
 def display_available() -> bool:
-    """Whether tkinter can open a window here. Probed once, then remembered."""
+    """Whether a usable Tk *and* ttk are present. Probed once, then remembered.
+
+    Creating a bare `tk.Tk()` is not a sufficient check. Some hosted runners
+    ship a Python whose Tcl/Tk tree is incomplete: the root window is created,
+    and then sourcing ttk.tcl fails with
+
+        This probably means that tk wasn't installed properly.
+
+    The window uses ttk widgets throughout, so the probe exercises ttk as well;
+    otherwise these tests error instead of skipping on such a machine.
+    """
     global _DISPLAY
     if _DISPLAY is None:
+        root = None
         try:
             root = tk.Tk()
+            ttk.Style(root).theme_use("clam")
         except tk.TclError:
             _DISPLAY = False
         else:
-            root.destroy()
             _DISPLAY = True
+        finally:
+            if root is not None:
+                with contextlib.suppress(tk.TclError):
+                    root.destroy()
     return _DISPLAY
 
 
