@@ -1,8 +1,12 @@
 """Tests for the desktop shell.
 
 The presentation logic (`format_metrics`) is a pure function and is always
-tested. The widget wiring needs a display, so those tests skip where there is
-none - a headless CI runner without an X server, for instance.
+tested. The widget tests need a display, so they skip where there is none.
+
+One Tk root is created for the whole module rather than one per test. Creating
+and destroying a root repeatedly is slow, and on hosted Windows runners it
+intermittently fails to read init.tcl - a flake in the test setup, not in the
+code under test.
 """
 
 from __future__ import annotations
@@ -13,14 +17,21 @@ import pytest
 
 from quality_template.core import analyse_text, format_metrics
 
+_DISPLAY: bool | None = None
+
 
 def display_available() -> bool:
-    try:
-        root = tk.Tk()
-    except tk.TclError:
-        return False
-    root.destroy()
-    return True
+    """Whether tkinter can open a window here. Probed once, then remembered."""
+    global _DISPLAY
+    if _DISPLAY is None:
+        try:
+            root = tk.Tk()
+        except tk.TclError:
+            _DISPLAY = False
+        else:
+            root.destroy()
+            _DISPLAY = True
+    return _DISPLAY
 
 
 class TestFormatMetrics:
@@ -54,17 +65,34 @@ class TestFormatMetrics:
         assert values["unique words"] == str(stats.unique_words)
 
 
+SAMPLE = "The cat sat on the mat. The cat purred."
+
+
+@pytest.fixture(scope="module")
+def app():
+    """One window for the whole module."""
+    if not display_available():
+        pytest.skip("no display available for tkinter")
+    from quality_template.app import AnalyserWindow
+
+    window = AnalyserWindow(SAMPLE)
+    window.update_idletasks()
+    yield window
+    window.destroy()
+
+
+@pytest.fixture
+def window(app):
+    """The shared window, reset to the sample text before each test."""
+    app.input.delete("1.0", "end")
+    app.input.insert("1.0", SAMPLE)
+    app.analyse()
+    app.update_idletasks()
+    return app
+
+
 @pytest.mark.skipif(not display_available(), reason="no display available for tkinter")
 class TestAnalyserWindow:
-    @pytest.fixture
-    def window(self):
-        from quality_template.app import AnalyserWindow
-
-        win = AnalyserWindow("The cat sat on the mat. The cat purred.")
-        win.update_idletasks()
-        yield win
-        win.destroy()
-
     def test_opens_with_the_given_text(self, window):
         assert "cat sat" in window.input.get("1.0", "end-1c")
 
