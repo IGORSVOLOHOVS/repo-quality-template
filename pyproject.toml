@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repo-quality-template"
+version = "1.0.0"
+description = "A reference project layout: CI/CD, tests, docs, benchmarks, quality metrics and reproducible releases."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Igors Volohovs", email = "igorsvolohovs@gmail.com" }]
+keywords = ["template", "ci", "quality", "iso25010"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-benchmark>=4.0",
+    "ruff>=0.6",
+    "radon>=6.0",
+    "pre-commit>=3.7",
+]
+release = ["pyinstaller>=6.0"]
+
+[project.scripts]
+quality-template = "quality_template.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/IGORSVOLOHOVS/repo-quality-template"
+Issues = "https://github.com/IGORSVOLOHOVS/repo-quality-template/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ---------------------------------------------------------------- formatting
+# Point 9 of the standard: style is enforced by a tool, never by hand.
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests", "scripts", "benchmarks"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # import order
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "SIM",       # simplify
+    "C90",       # mccabe complexity
+    "S",         # bandit security rules
+    "RUF",
+]
+ignore = ["S101"]  # assert is how pytest works
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "C90"]
+"benchmarks/*" = ["S"]
+"scripts/*" = ["S404", "S603", "S607"]  # these scripts drive git/pyinstaller on purpose
+
+[tool.ruff.format]
+quote-style = "double"
+
+# --------------------------------------------------------------------- tests
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers --strict-config"
+markers = ["slow: takes more than a second"]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Point 3: coverage is not decorative - the build fails below this line.
+fail_under = 85
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

@@ -1,0 +1,1 @@
+Quality is not an act, it is a habit. A repository earns trust the same way: tests that run, documentation that matches the code, and a release anyone can download and verify.
