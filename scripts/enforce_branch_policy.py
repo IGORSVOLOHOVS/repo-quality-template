@@ -68,21 +68,28 @@ def main() -> int:
 
     local = local_branches()
     extra_local = [b for b in local if b not in ALLOWED]
-    missing = [b for b in ALLOWED if b not in local]
 
-    print("local branches:")
+    # A CI checkout creates exactly one local branch, so "these three exist" can
+    # only be judged against the remote. When --remote is given it is the
+    # authority for what exists; the local list is then informational.
+    remote = remote_branches(args.remote) if args.remote else []
+    authoritative = remote if args.remote else local
+    missing = [b for b in ALLOWED if b not in authoritative]
+
+    print("local branches:" if local else "local branches: none (detached HEAD)")
     for b in sorted(local):
         print(f"  {'OK   ' if b in ALLOWED else 'EXTRA'} {b}")
-    if missing:
-        print(f"\nmissing required branches: {', '.join(missing)}")
 
     extra_remote: list[str] = []
     if args.remote:
-        remote = remote_branches(args.remote)
         extra_remote = [b for b in remote if b not in ALLOWED]
         print(f"\n{args.remote} branches:")
         for b in sorted(remote):
             print(f"  {'OK   ' if b in ALLOWED else 'EXTRA'} {b}")
+
+    if missing:
+        where = args.remote if args.remote else "locally"
+        print(f"\nmissing required branches on {where}: {', '.join(missing)}")
 
     if args.delete_extra and extra_local:
         existing = set(local)
