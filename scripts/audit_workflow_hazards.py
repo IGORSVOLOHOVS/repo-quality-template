@@ -61,8 +61,9 @@ RUNS = re.compile(r"run:\s*(.+)")
 
 
 def git(repo: Path, *args: str) -> str:
-    p = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True,
-                       encoding="utf-8", errors="replace")
+    p = subprocess.run(
+        ["git", *args], cwd=repo, capture_output=True, text=True, encoding="utf-8", errors="replace"
+    )
     return p.stdout if p.returncode == 0 else ""
 
 
@@ -74,6 +75,78 @@ def default_branch(repo: Path) -> str:
         if git(repo, "rev-parse", "--verify", "--quiet", c).strip():
             return c
     return ""
+
+
+def _issue(name: str, wf: str, kind: str, detail: str) -> dict:
+    return {"repo": name, "file": wf, "kind": kind, "detail": detail}
+
+
+def check_action_versions(name: str, wf: str, body: str) -> list[dict]:
+    """A pinned action that is archived, or several majors behind."""
+    found = []
+    for action, major in USES.findall(body):
+        if action in DEAD_ACTIONS:
+            found.append(_issue(name, wf, "dead action", f"{action} -> use {DEAD_ACTIONS[action]}"))
+        elif action in CURRENT_MAJOR and int(major) < CURRENT_MAJOR[action]:
+            found.append(
+                _issue(
+                    name,
+                    wf,
+                    "outdated action",
+                    f"{action}@v{major} (current: v{CURRENT_MAJOR[action]})",
+                )
+            )
+    return found
+
+
+def check_undeclared_tools(name: str, wf: str, body: str, manifests: str) -> list[dict]:
+    """A tool the workflow invokes but nothing installs.
+
+    A tool counts as declared if a manifest lists it OR the workflow installs it
+    inline; checking manifests alone reports a false positive for every
+    `pip install ruff` step.
+    """
+    commands = " ".join(RUNS.findall(body))
+    declared = manifests + "\n" + "\n".join(re.findall(r"pip install[^\n|&]*", body))
+    return [
+        _issue(name, wf, "tool not declared", f"CI uses {package} but nothing installs it")
+        for pattern, package in FLAG_REQUIRES.items()
+        if re.search(pattern, commands) and package not in declared
+    ]
+
+
+def check_uv_without_pyproject(name: str, wf: str, body: str, has_pyproject: bool) -> list[dict]:
+    if "uv sync" in " ".join(RUNS.findall(body)) and not has_pyproject:
+        return [
+            _issue(
+                name,
+                wf,
+                "uv without pyproject",
+                "uv sync needs a pyproject.toml; this repo has none",
+            )
+        ]
+    return []
+
+
+def check_triggers(name: str, wf: str, body: str, real: set[str]) -> list[dict]:
+    """A workflow watching branches the repository does not have."""
+    watched: set[str] = set()
+    for group in BRANCHES.findall(body):
+        watched |= {b.strip().strip("\"'") for b in group.split(",") if b.strip()}
+    if not watched:
+        return []
+    if not watched & real:
+        # Nothing it watches exists, so it never fires - which reads as
+        # "no CI" rather than "CI is broken", and nothing tells you.
+        return [
+            _issue(
+                name, wf, "never triggers", f"watches {sorted(watched)}; repo has {sorted(real)}"
+            )
+        ]
+    missing = sorted(watched - real)
+    if missing:
+        return [_issue(name, wf, "watches a missing branch", f"{missing} do not exist")]
+    return []
 
 
 def audit(name: str) -> list[dict]:
@@ -89,9 +162,8 @@ def audit(name: str) -> list[dict]:
     if not workflows:
         return []
 
-    real_branches = {b.strip() for b in
-                     git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads").splitlines()
-                     if b.strip()}
+    refs = git(repo, "for-each-ref", "--format=%(refname:short)", "refs/heads")
+    real_branches = {b.strip() for b in refs.splitlines() if b.strip()}
     manifests = "\n".join(
         git(repo, "show", f"{branch}:{m}")
         for m in files
@@ -103,40 +175,10 @@ def audit(name: str) -> list[dict]:
     for wf in workflows:
         body = git(repo, "show", f"{branch}:{wf}")
         short = wf.split("/")[-1]
-
-        for action, major in USES.findall(body):
-            if action in DEAD_ACTIONS:
-                issues.append({"repo": name, "file": short, "kind": "dead action",
-                               "detail": f"{action} -> use {DEAD_ACTIONS[action]}"})
-            elif action in CURRENT_MAJOR and int(major) < CURRENT_MAJOR[action]:
-                issues.append({"repo": name, "file": short, "kind": "outdated action",
-                               "detail": f"{action}@v{major} (current: v{CURRENT_MAJOR[action]})"})
-
-        commands = " ".join(RUNS.findall(body))
-        # A tool counts as declared if a manifest lists it OR the workflow
-        # installs it inline. Checking manifests alone reports a false positive
-        # for every `pip install ruff` step.
-        declared = manifests + "\n" + "\n".join(
-            re.findall(r"pip install[^\n|&]*", body))
-        for pattern, package in FLAG_REQUIRES.items():
-            if re.search(pattern, commands) and package not in declared:
-                issues.append({"repo": name, "file": short, "kind": "tool not declared",
-                               "detail": f"CI uses {package} but nothing installs it"})
-
-        if "uv sync" in commands and not has_pyproject:
-            issues.append({"repo": name, "file": short, "kind": "uv without pyproject",
-                           "detail": "uv sync needs a pyproject.toml; this repo has none"})
-
-        watched = set()
-        for group in BRANCHES.findall(body):
-            watched |= {b.strip().strip('"\'') for b in group.split(",") if b.strip()}
-        missing = sorted(watched - real_branches)
-        if watched and not (watched & real_branches):
-            issues.append({"repo": name, "file": short, "kind": "never triggers",
-                           "detail": f"watches {sorted(watched)}; repo has {sorted(real_branches)}"})
-        elif missing:
-            issues.append({"repo": name, "file": short, "kind": "watches a missing branch",
-                           "detail": f"{missing} do not exist"})
+        issues += check_action_versions(name, short, body)
+        issues += check_undeclared_tools(name, short, body, manifests)
+        issues += check_uv_without_pyproject(name, short, body, has_pyproject)
+        issues += check_triggers(name, short, body, real_branches)
     return issues
 
 
@@ -160,7 +202,8 @@ def main() -> int:
         print()
 
     (HERE / "workflow_hazards.json").write_text(
-        json.dumps(found, indent=2, ensure_ascii=False), encoding="utf-8")
+        json.dumps(found, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     print(f"{len(found)} hazards -> workflow_hazards.json")
     return 0
 
