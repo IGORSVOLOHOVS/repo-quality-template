@@ -34,7 +34,9 @@ exec "{python}" "{script}" --quiet
 
 def have(module: str) -> bool:
     return (
-        subprocess.run([sys.executable, "-c", f"import {module}"], capture_output=True).returncode
+        subprocess.run(
+            [sys.executable, "-c", f"import {module}"], capture_output=True, check=False
+        ).returncode
         == 0
     )
 
@@ -47,6 +49,7 @@ def run(label: str, args: list[str], *, quiet: bool) -> bool:
         text=True,
         encoding="utf-8",
         errors="replace",
+        check=False,  # the return code is the result, not an error
     )
     ok = proc.returncode == 0
     print(f"  {'OK  ' if ok else 'FAIL'} {label}")
