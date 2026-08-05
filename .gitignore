@@ -32,3 +32,4 @@ release/
 *.swp
 .DS_Store
 Thumbs.db
+benchmark.json
