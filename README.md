@@ -118,6 +118,28 @@ python scripts/collect_quality_metrics.py
 | Secret scan | `gitleaks` | yes, over full history |
 | Branch policy | `python scripts/enforce_branch_policy.py` | yes |
 
+### Measured performance
+
+`benchmarks/test_performance.py`, median of many rounds:
+
+| What is measured | Median |
+| --- | ---: |
+| `top_words` on an already-analysed text | 3.8 µs |
+| `analyse_text` on 1 paragraph | 20.4 µs |
+| `analyse_text` on 50 paragraphs | 836.4 µs |
+| `tokenise` on 500 paragraphs | 5.92 ms |
+| `analyse_text` on 500 paragraphs | 8.37 ms |
+
+Analysis is linear in input length — 50 → 500 paragraphs is 10× the input for
+10× the time — which is what the design predicts: one compiled regular
+expression over the text and a `Counter` over the result, with no caching layer
+to invalidate. Tokenising is 71 % of the total, so that regular expression is
+where any optimisation would have to start.
+
+```bash
+pytest benchmarks --benchmark-only
+```
+
 ---
 
 ## Branches
