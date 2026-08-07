@@ -51,6 +51,15 @@ PREFIXES = (
     ["python", "-m"],
     ["python3", "-m"],
     ["py", "-m"],
+    # A GUI test suite on a headless Linux runner is wrapped in xvfb-run, which
+    # supplies a display and then runs the command unchanged. Without this the
+    # line reads as an invocation of `xvfb-run`, which is not a tool this script
+    # knows, so the whole step is skipped in silence. It was masked here only
+    # because the matrix also runs the same tests on Windows without the
+    # wrapper; a repository that builds on Linux alone would have been checking
+    # nothing.
+    ["xvfb-run", "-a"],
+    ["xvfb-run"],
 )
 YAML_KEY = re.compile(r"^-?\s*(name|uses|with|env|if|id|shell|working-directory):")
 
