@@ -16,6 +16,16 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# The script reads pyproject.toml with tomllib, which arrived in 3.11. The
+# project supports 3.10 and the test matrix covers it, but every workflow that
+# runs this script pins 3.12 - so the right answer is to skip the module rather
+# than to add a backport dependency for a path that never executes.
+if sys.version_info < (3, 11):  # pragma: no cover - only on the 3.10 leg
+    pytest.skip(
+        "enforce_branch_policy.py needs tomllib (3.11+); its workflows run 3.12",
+        allow_module_level=True,
+    )
+
 
 def load_policy():
     """Import the script by path; scripts/ is not a package."""
