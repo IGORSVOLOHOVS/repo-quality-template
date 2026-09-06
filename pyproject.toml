@@ -24,6 +24,7 @@ dev = [
     "pytest-cov>=5.0",
     "pytest-benchmark>=4.0",
     "ruff>=0.6",
+    "mypy>=1.11",
     "radon>=6.0",
     "pre-commit>=3.7",
 ]
@@ -63,6 +64,13 @@ ignore = ["S101"]  # assert is how pytest works
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
+[tool.ruff.lint.isort]
+# target-version is py310, where tomllib does not exist, so ruff sorts it as a
+# third-party package. The scripts that read pyproject.toml run on 3.12, where
+# it is standard library, and grouping it with argparse is what a reader
+# expects.
+extra-standard-library = ["tomllib"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S", "C90"]
 "benchmarks/*" = ["S"]
@@ -70,6 +78,32 @@ max-complexity = 10
 
 [tool.ruff.format]
 quote-style = "double"
+
+# ------------------------------------------------------- contribution shape
+# Written once. scripts/enforce_contribution_policy.py, the issue templates and
+# the pull-request template all describe the same vocabulary, so this is the
+# only place it is defined. See docs/workflow.md.
+[tool.repo-quality]
+code = "rqt"
+long_lived_branches = ["release", "dev", "test"]
+branch_types = [
+    "feat", "fix", "docs", "test", "refactor",
+    "perf", "build", "ci", "chore", "security",
+]
+commit_types = [
+    "feat", "fix", "docs", "test", "refactor",
+    "perf", "build", "ci", "chore", "security",
+]
+commit_scopes = ["core", "cli", "app", "ci", "docs", "scripts", "benchmarks", "release"]
+
+# --------------------------------------------------------------- type checks
+# Scoped to src/ on purpose: that is the product. The scripts in scripts/ drive
+# git and pyinstaller and are checked by ruff, not by mypy.
+[tool.mypy]
+files = ["src"]
+python_version = "3.10"
+strict = true
+warn_unreachable = true
 
 # --------------------------------------------------------------------- tests
 [tool.pytest.ini_options]

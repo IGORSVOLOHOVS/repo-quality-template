@@ -1,6 +1,6 @@
 # Branching
 
-Three branches exist. No others, ever.
+Three long-lived branches, and nothing that outlives a pull request.
 
 | Branch | Holds | Protected |
 | --- | --- | --- |
@@ -14,22 +14,43 @@ dev ──────► test ──────► release ──► tag vX.Y.
  └──────────── hotfix merged back ────────┘
 ```
 
-## Why only three
+## Work branches
+
+A pull request needs a branch on the remote to point at, so there is a fourth
+kind — and only that kind:
+
+```
+<code>-<issue>/<type>/<slug>
+rqt-12/feat/sbom-in-release
+```
+
+`code` and the type list come from `[tool.repo-quality]` in `pyproject.toml`.
+The issue number is part of the name, so the reason the branch exists is never
+more than one `gh issue view` away.
+
+A work branch is deleted when its pull request merges. `enforce_branch_policy.py`
+names any whose tip is already merged; leaving one is how the graveyard starts.
+
+## Why only three long-lived ones
 
 Long-lived feature branches are where work goes to be forgotten. The audit of
 this account found repositories whose default branch was nearly empty while the
 real code sat in a branch nobody had touched in a year — `Sandbox`,
-`soal-coffee` and `WebSearchAI` among them. Three branches make that impossible:
-if it is not in `dev`, it does not exist.
+`soal-coffee` and `WebSearchAI` among them. Three long-lived branches make that
+impossible: if it is not on the way to `dev`, it does not exist.
 
-Short-lived work happens locally. Rebase onto `dev` and push `dev`; do not push
-the local branch.
+This used to read "three branches, never a fourth", and work was supposed to
+stay in a local clone. That rule forbade pull requests — a pull request cannot
+point at a branch that was never pushed — which meant no review gate, no
+templates, and no record of why a change was made. The grammar above buys the
+review back without buying the graveyard: a branch has to carry an issue
+number, and it has to go away when the issue closes.
 
 ## Enforcement
 
-`scripts/enforce_branch_policy.py` fails if a fourth branch exists, locally or
-on the remote. It runs on every push and every Monday via
-`.github/workflows/branch-policy.yml`.
+`scripts/enforce_branch_policy.py` fails on a branch that is neither long-lived
+nor a well-formed work branch, locally or on the remote. It runs on every push
+and every Monday via `.github/workflows/branch-policy.yml`.
 
 ```bash
 python scripts/enforce_branch_policy.py --remote origin   # report
@@ -62,11 +83,12 @@ UI.
 
 ```bash
 git checkout release && git merge --ff-only test
-git tag -a v1.2.0 -m "v1.2.0"
+git tag -s -a v1.2.0 -m "v1.2.0"        # -s signs the tag
 git push origin release --tags
 ```
 
 The tag triggers `.github/workflows/release.yml`, which runs the tests, builds
-the executable and the zip, writes a checksum for each, and publishes a GitHub
-Release. Update `CHANGELOG.md` before tagging — the release notes are taken from
-it.
+the executable and the zip, generates the CycloneDX SBOM, writes a checksum for
+each file, and publishes a GitHub Release. Update `CHANGELOG.md` before
+tagging — the release notes are taken from it, and any fixed vulnerability is
+named there.

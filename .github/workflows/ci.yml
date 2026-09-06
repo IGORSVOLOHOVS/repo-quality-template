@@ -4,7 +4,7 @@ name: CI
 
 on:
   push:
-    branches: [release, dev, test]
+    branches: [release, dev, test, "*-*/**"]
   pull_request:
     branches: [release, dev, test]
   workflow_dispatch:
@@ -32,6 +32,8 @@ jobs:
         run: ruff check --output-format=github .
       - name: Ruff format check
         run: ruff format --check .
+      - name: Type check
+        run: python -m mypy
 
   test:
     name: Tests (${{ matrix.os }}, Python ${{ matrix.python }})

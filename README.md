@@ -112,11 +112,14 @@ python scripts/collect_quality_metrics.py
 | --- | --- | --- |
 | Tests and coverage | `pytest --cov` | yes, fails below 85 % |
 | Lint and format | `ruff check . && ruff format .` | yes |
+| Types | `mypy`, strict, over `src/` | yes |
 | Complexity ceiling | `ruff` rule `C90`, max 10 | yes |
 | Benchmarks | `pytest benchmarks --benchmark-only` | yes |
 | Profiling | `python scripts/profile_application.py` | on demand |
 | Secret scan | `gitleaks` | yes, over full history |
 | Branch policy | `python scripts/enforce_branch_policy.py` | yes |
+| Contribution policy | `python scripts/enforce_contribution_policy.py` | yes, on every pull request |
+| Bill of materials | `python scripts/generate_sbom.py` | yes, on every release |
 
 ### Measured performance
 
@@ -142,10 +145,29 @@ pytest benchmarks --benchmark-only
 
 ---
 
+## How a change travels
+
+Issue, branch, commits, pull request, merge, release — and the first step is
+not optional, because the issue is where the acceptance criteria are written
+down. Full path in [`docs/workflow.md`](docs/workflow.md).
+
+```bash
+gh issue create                        # acceptance criteria go in here
+git switch -c rqt-12/feat/slug dev
+git commit -s -m "feat(core): ..."
+python scripts/check_before_push.py
+git push -u origin HEAD
+gh pr create --base dev --fill         # the body says: Closes #12
+```
+
+Branch name, commit subjects, sign-off and the issue link are checked by
+`contribution-policy.yml`, so none of them costs a review comment.
+
 ## Branches
 
-Exactly three: `release`, `dev`, `test`. No others — CI fails if a fourth
-appears. See [`docs/branching.md`](docs/branching.md).
+Three long-lived branches — `release`, `dev`, `test` — plus short-lived work
+branches named `<code>-<issue>/<type>/<slug>`, deleted when their pull request
+merges. CI fails on anything else. See [`docs/branching.md`](docs/branching.md).
 
 ---
 
@@ -168,17 +190,28 @@ python scripts/apply_template_to_repo.py --target ../some-project --dry-run
 python scripts/apply_template_to_repo.py --target ../some-project --apply
 ```
 
-It copies the infrastructure — workflows, lint config, scripts, licence — leaves
-the target's own source alone, never overwrites an existing file without
-`--force`, and prints which of the standard's points the target now satisfies
-and which still need work by hand.
+It copies the infrastructure — workflows, issue and pull-request templates,
+lint config, scripts, licence — leaves the target's own source alone, never
+overwrites an existing file without `--force`, and prints which of the
+standard's twenty-four points the target now satisfies and which still need
+work by hand.
 
 ---
 
 ## Contributing
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md). Security policy:
-[`SECURITY.md`](SECURITY.md).
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) and
+[`docs/workflow.md`](docs/workflow.md). Security policy:
+[`SECURITY.md`](SECURITY.md). Conduct:
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+
+## Where the standard came from
+
+The twenty-four points are measured against the OpenSSF Best Practices Badge
+and OpenSSF Scorecard in
+[`docs/standards-comparison.md`](docs/standards-comparison.md). The criteria
+this project deliberately does not meet are argued, one by one, in
+[`docs/decisions.md`](docs/decisions.md).
 
 ## License
 

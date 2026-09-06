@@ -63,11 +63,18 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artefacts
+      - name: Software bill of materials
+        # Every release says what is inside it, so "are we affected by the
+        # hole announced this morning" is answered from the release itself
+        # rather than from a lock file somebody guesses was the right one.
+        run: python scripts/generate_sbom.py --output release/sbom.json
+
       - name: Collect files
         run: |
           mkdir -p release
           find artefacts -type f \( -name '*.zip' -o -name '*.exe' -o -name '*.sha256' \) \
             -exec cp {} release/ \;
+          sha256sum release/sbom.json > release/sbom.json.sha256
           ls -la release
       - name: Create release
         uses: softprops/action-gh-release@v2

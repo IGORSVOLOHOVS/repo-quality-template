@@ -6,6 +6,35 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Issue templates with mandatory acceptance criteria, a pull-request template,
+  and `CODEOWNERS` - the shape of a contribution, in the place GitHub reads it.
+- `scripts/enforce_contribution_policy.py` and `contribution-policy.yml`:
+  branch grammar, commit format, sign-off and the issue link, checked before a
+  human is asked to read the diff.
+- `scripts/generate_sbom.py`: a CycloneDX bill of materials, attached to every
+  release with its own checksum.
+- Strict `mypy` over `src/`, in the lint job.
+- `.github/dependabot.yml`, weekly, for pip and for actions.
+- `CODE_OF_CONDUCT.md`.
+- `docs/workflow.md` - issue to release, six steps.
+- `docs/decisions.md` - the OpenSSF criteria this project deliberately does not
+  meet, each with its reason.
+- `docs/standards-comparison.md` - where the points came from, measured against
+  the OpenSSF Best Practices Badge and Scorecard.
+
+### Changed
+
+- The standard is twenty-four points, not fourteen.
+- Point 14 is now "three long-lived branches" rather than "three branches":
+  work happens on a short-lived `<code>-<issue>/<type>/<slug>` branch that is
+  deleted when its pull request merges. The old rule made a pull request
+  impossible, and with it the review gate.
+- `scripts/apply_template_to_repo.py` copies the new infrastructure and reports
+  all twenty-four points.
+
+
 ## [1.0.0] - 2026-08-01
 
 ### Added

@@ -1,8 +1,21 @@
-"""Point 14: exactly three branches - release, dev, test. Nothing else.
+"""Point 14: three long-lived branches - release, dev, test - and nothing that
+outlives a pull request.
 
     python scripts/enforce_branch_policy.py                 # report
     python scripts/enforce_branch_policy.py --remote origin # check the remote too
     python scripts/enforce_branch_policy.py --delete-extra  # actually remove them
+
+The rule used to be "three branches, never a fourth", which made a pull request
+impossible: a pull request needs a branch on the remote to point at. So a
+fourth kind of branch is allowed, and only that kind - a work branch named
+``<code>-<issue>/<type>/<slug>``, carrying an issue number, deleted when its
+pull request merges. The grammar comes from ``[tool.repo-quality]`` in
+pyproject.toml, the same place the commit checker reads.
+
+What is still forbidden is the thing the rule was written against: a long-lived
+branch with a name nobody can parse, holding work that is not in `dev` and will
+be forgotten. A work branch whose tip is already merged is reported as stale,
+because it has become exactly that.
 
 Reporting is the default and deleting is opt-in on purpose: a stray branch is
 often the only copy of something. --delete-extra refuses to touch a branch whose
@@ -13,10 +26,33 @@ without being named first.
 from __future__ import annotations
 
 import argparse
+import re
 import subprocess
 import sys
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
 
 ALLOWED = ("release", "dev", "test")
+
+
+def work_branch_pattern() -> re.Pattern[str]:
+    """The grammar a short-lived branch has to match, from pyproject.toml."""
+    with (ROOT / "pyproject.toml").open("rb") as handle:
+        settings = tomllib.load(handle).get("tool", {}).get("repo-quality", {})
+    code = re.escape(str(settings.get("code", "")))
+    types = "|".join(re.escape(str(t)) for t in settings.get("branch_types", []))
+    return re.compile(rf"^{code}-\d+/({types})/[a-z0-9][a-z0-9-]*$")
+
+
+def classify(branch: str, pattern: re.Pattern[str]) -> str:
+    """One of: long-lived, work, stray."""
+    if branch in ALLOWED:
+        return "long-lived"
+    if pattern.match(branch):
+        return "work"
+    return "stray"
 
 
 def git(*args: str) -> str:
@@ -58,6 +94,45 @@ def is_merged_into_allowed(branch: str, existing: set[str]) -> bool:
     return False
 
 
+def report(kind: str, branches: list[str], pattern: re.Pattern[str]) -> tuple[list[str], list[str]]:
+    """Print one section and hand back its stray and work branches."""
+    stray: list[str] = []
+    work: list[str] = []
+    print(f"{kind}:" if branches else f"{kind}: none")
+    for branch in sorted(branches):
+        label = classify(branch, pattern)
+        print(f"  {label:<10} {branch}")
+        if label == "stray":
+            stray.append(branch)
+        elif label == "work":
+            work.append(branch)
+    return stray, work
+
+
+def delete_merged(branches: list[str], existing: set[str]) -> None:
+    """Delete the branches whose tip is already inside a long-lived branch."""
+    if branches:
+        print("\ndeleting extra local branches:")
+    for branch in branches:
+        if is_merged_into_allowed(branch, existing):
+            git("branch", "-d", branch)
+            print(f"  deleted {branch} (already merged)")
+        else:
+            print(
+                f"  KEPT {branch} - has commits not present in release/dev/test; "
+                f"merge or export it first"
+            )
+
+
+def explain_failure(stray: list[str], missing: list[str]) -> None:
+    print("\nbranch policy NOT satisfied")
+    for branch in stray:
+        print(f"  {branch} is neither long-lived nor <code>-<issue>/<type>/<slug>")
+    if missing:
+        print(f"  missing: {', '.join(missing)}")
+    print("  see docs/branching.md")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--remote", help="also check this remote, e.g. origin")
@@ -66,8 +141,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    pattern = work_branch_pattern()
     local = local_branches()
-    extra_local = [b for b in local if b not in ALLOWED]
 
     # A CI checkout creates exactly one local branch, so "these three exist" can
     # only be judged against the remote. When --remote is given it is the
@@ -76,42 +151,34 @@ def main() -> int:
     authoritative = remote if args.remote else local
     missing = [b for b in ALLOWED if b not in authoritative]
 
-    print("local branches:" if local else "local branches: none (detached HEAD)")
-    for b in sorted(local):
-        print(f"  {'OK   ' if b in ALLOWED else 'EXTRA'} {b}")
-
-    extra_remote: list[str] = []
+    stray_local, work_local = report("local branches", local, pattern)
+    stray_remote: list[str] = []
     if args.remote:
-        extra_remote = [b for b in remote if b not in ALLOWED]
-        print(f"\n{args.remote} branches:")
-        for b in sorted(remote):
-            print(f"  {'OK   ' if b in ALLOWED else 'EXTRA'} {b}")
+        print()
+        stray_remote, _ = report(f"{args.remote} branches", remote, pattern)
 
     if missing:
         where = args.remote if args.remote else "locally"
         print(f"\nmissing required branches on {where}: {', '.join(missing)}")
 
-    if args.delete_extra and extra_local:
-        existing = set(local)
-        print("\ndeleting extra local branches:")
-        for b in extra_local:
-            if is_merged_into_allowed(b, existing):
-                git("branch", "-d", b)
-                print(f"  deleted {b} (already merged)")
-            else:
-                print(
-                    f"  KEPT {b} - has commits not present in release/dev/test; "
-                    f"merge or export it first"
-                )
+    # A work branch that is already merged has become the thing the rule exists
+    # to prevent, so it is named - but it is not a build failure, because
+    # deleting it is the sweep's job and not this check's.
+    existing = set(local)
+    stale = [b for b in work_local if is_merged_into_allowed(b, existing)]
+    if stale:
+        print("\nwork branches already merged, safe to delete:")
+        for branch in stale:
+            print(f"  {branch}")
 
-    problems = extra_local or extra_remote or missing
-    if problems:
-        print("\nbranch policy NOT satisfied")
-        if extra_remote:
-            print(f"  extra on {args.remote}: {', '.join(extra_remote)}")
+    if args.delete_extra:
+        delete_merged(stray_local + work_local, existing)
+
+    if stray_local or stray_remote or missing:
+        explain_failure(stray_local + stray_remote, missing)
         return 1
 
-    print("\nbranch policy satisfied: release, dev, test and nothing else")
+    print("\nbranch policy satisfied: release, dev, test, plus work branches with an issue number")
     return 0
 
 
