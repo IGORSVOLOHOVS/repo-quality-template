@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 TEMPLATE = Path(__file__).resolve().parent.parent
@@ -44,6 +45,7 @@ INFRASTRUCTURE = [
     "scripts/collect_quality_metrics.py",
     "scripts/profile_application.py",
     "scripts/enforce_branch_policy.py",
+    "scripts/check_before_push.py",
     "scripts/enforce_contribution_policy.py",
     "scripts/generate_sbom.py",
     "scripts/capture_usage_screenshots.py",
@@ -105,18 +107,36 @@ def copy(rel: str, target: Path, force: bool, dry: bool) -> str:
 
 
 def branch_report(target: Path) -> str:
-    if not (target / ".git").exists():
-        return "not a git repository"
-    out = subprocess.run(
-        ["git", "branch", "-a", "--format=%(refname:short)"],
+    """Point 14, judged by the code that enforces it rather than a copy.
+
+    This used to re-implement the rule with `git branch -a`, which counted
+    remote-tracking references to branches deleted when their pull request
+    merged. The target was told it had extra branches while
+    enforce_branch_policy.py, run in the same directory a second later, said
+    the policy was satisfied. Two checks of one rule disagreeing is worse than
+    either of them being wrong, so there is now one implementation.
+    """
+    script = target / "scripts" / "enforce_branch_policy.py"
+    if not script.is_file():
+        return "cannot tell - scripts/enforce_branch_policy.py is not there yet"
+
+    proc = subprocess.run(
+        [sys.executable, str(script)],
         cwd=target,
         capture_output=True,
         text=True,
-    ).stdout
-    names = {b.strip().replace("origin/", "") for b in out.splitlines() if b.strip()}
-    names.discard("HEAD")
-    extra = sorted(n for n in names if n not in ("release", "dev", "test"))
-    return "release, dev, test only" if not extra else f"extra branches: {', '.join(extra)}"
+        check=False,
+    )
+    if proc.returncode == 0:
+        return "release, dev, test, and nothing stray"
+    stray = [
+        line.strip().split(" is neither")[0]
+        for line in proc.stdout.splitlines()
+        if " is neither" in line
+    ]
+    if stray:
+        return "stray branches: " + ", ".join(stray)
+    return "not satisfied - run scripts/enforce_branch_policy.py"
 
 
 def main() -> int:

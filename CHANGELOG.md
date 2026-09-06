@@ -24,6 +24,20 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - `docs/standards-comparison.md` - where the points came from, measured against
   the OpenSSF Best Practices Badge and Scorecard.
 
+### Fixed
+
+- The branch policy rejected every branch Dependabot opened. Point 21 asks for
+  a bot that watches the dependencies and point 14 asks every branch to carry
+  an issue number; a bot can do neither, so switching Dependabot on turned
+  every pull request in the repository red. Bot prefixes are now a configured,
+  opt-in class, with tests for all four classifications.
+- `scripts/apply_template_to_repo.py` did not copy `check_before_push.py`, so a
+  target repository was told to run a file it had not been given.
+- The same script judged point 14 with its own copy of the rule, reading
+  `git branch -a` without pruning, and reported stray branches that had been
+  deleted when their pull request merged. It now calls
+  `enforce_branch_policy.py`, so there is one implementation.
+
 ### Changed
 
 - The standard is twenty-four points, not fourteen.
