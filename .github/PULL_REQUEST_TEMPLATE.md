@@ -10,7 +10,13 @@ this form is for.
 
 ## Closes
 
-<!-- Required. "Closes #12" - the workflow fails without it. -->
+<!--
+Required. "Closes #12" - the workflow fails without it.
+
+It will not close the issue on merge: GitHub only acts on the keyword for the
+default branch, and this merges into `dev`. Close the issue by hand and say
+which pull request did it. See docs/workflow.md.
+-->
 Closes #
 
 ## What changed

@@ -104,6 +104,27 @@ Delete the branch when it merges. `enforce_branch_policy.py` names work
 branches whose tip is already merged; leaving one is how a repository grows the
 graveyard that point 14 exists to prevent.
 
+### Closing the issue
+
+`Closes #12` in the pull request body is required, and it will **not** close the
+issue when the pull request merges into `dev`. GitHub acts on a closing keyword
+only for the default branch, which here is `release`.
+
+That is what the three-branch model costs, so the rule is explicit:
+
+| when | what happens to the issue |
+| --- | --- |
+| merged into `dev` | **close it by hand**, with a comment naming the pull request |
+| reaches `release` | the closing keyword fires, if it is somehow still open |
+| release notes | list what shipped - this is where the trail ends |
+
+Keep the keyword in the body regardless. It is the machine-readable link
+between a change and the reason it exists, and every later reader - including
+GitHub's own "linked issues" panel - follows it.
+
+An issue that is done and still open is the worst state a tracker has: it looks
+like work, it is counted as work, and nobody is sure.
+
 ## 6. Release
 
 `dev` → `test` → `release`, then a tag.
