@@ -207,7 +207,10 @@ def main() -> int:
         explain_failure(stray_local + stray_remote, missing)
         return 1
 
-    print("\nbranch policy satisfied: release, dev, test, plus work branches with an issue number")
+    print(
+        "\nbranch policy satisfied: release, dev, test, work branches with an "
+        "issue number, and branches a bot opened"
+    )
     return 0
 
 
