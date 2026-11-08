@@ -1,33 +1,34 @@
+# pyproject.toml - Python's own file for repo-quality-template.
+#
+# It pins the toolchain. `recipe.ps1 test` runs pytest, mypy, ruff check and ruff
+# format, and every setting those four read is here. There are no task-runner
+# sections: the recipe's verbs are the tasks. `[tool.repo-quality]` is the
+# template's own vocabulary, read by scripts/enforce_branch_policy.py and
+# scripts/enforce_contribution_policy.py.
+
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+# Pinned with a version, not a bare name: an unpinned backend changes what
+# `recipe.ps1 build` produces without anyone editing this file.
+requires = ["setuptools==80.9.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo-quality-template"
-version = "1.0.0"
+# This must equal $Version in recipe.ps1: `recipe.ps1 test` fails when they disagree.
+version = "1.1.0"
 description = "A reference project layout: CI/CD, tests, docs, benchmarks, quality metrics and reproducible releases."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { file = "LICENSE" }
-authors = [{ name = "Igors Volohovs", email = "igorsvolohovs@gmail.com" }]
+license = "MIT"
+authors = [{ name = "Igors Volohovs" }]
 keywords = ["template", "ci", "quality", "iso25010"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
 ]
 dependencies = []
 
 [project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-cov>=5.0",
-    "pytest-benchmark>=4.0",
-    "ruff>=0.6",
-    "mypy>=1.11",
-    "radon>=6.0",
-    "pre-commit>=3.7",
-]
 release = ["pyinstaller>=6.0"]
 
 [project.scripts]
@@ -37,12 +38,30 @@ quality-template = "quality_template.cli:main"
 Homepage = "https://github.com/IGORSVOLOHOVS/repo-quality-template"
 Issues = "https://github.com/IGORSVOLOHOVS/repo-quality-template/issues"
 
+[dependency-groups]
+# `uv run` installs this group by default, so test.yaml's Runner health step finds
+# ruff, pytest and mypy through `uv run --frozen <tool> --version`.
+dev = [
+    "ruff==0.16.1",
+    "mypy==2.3.0",
+    "pytest==8.4.2",
+    "pytest-cov==5.0.0",
+    "coverage==7.15.2",
+    "pytest-benchmark==5.1.0",
+    "radon==6.0.1",
+]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.uv]
+# The tests and `recipe.ps1 run` use the source tree, so uv does not install the project.
+package = false
+
 # ---------------------------------------------------------------- formatting
-# Point 9 of the standard: style is enforced by a tool, never by hand.
 [tool.ruff]
+# Ruff refuses to run at all when its own version is not this one.
+required-version = "0.16.1"
 line-length = 100
 target-version = "py310"
 src = ["src", "tests", "scripts", "benchmarks"]
@@ -60,13 +79,15 @@ select = [
     "RUF",
 ]
 ignore = ["S101"]  # assert is how pytest works
+# Section 7 prints these files verbatim: they are the lab's, not this repository's to restyle.
+exclude = [".claude/**", "tests/manual/serve.py", "tools/wiki.py"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
 [tool.ruff.lint.isort]
 # target-version is py310, where tomllib does not exist, so ruff sorts it as a
-# third-party package. The scripts that read pyproject.toml run on 3.12, where
+# third-party package. The scripts that read pyproject.toml run on 3.11+, where
 # it is standard library, and grouping it with argparse is what a reader
 # expects.
 extra-standard-library = ["tomllib"]
@@ -78,6 +99,9 @@ extra-standard-library = ["tomllib"]
 
 [tool.ruff.format]
 quote-style = "double"
+line-ending = "lf"
+# Section 7 prints these files verbatim, so the formatter must not touch them.
+exclude = [".claude/**", "tests/manual/serve.py", "tools/wiki.py"]
 
 # ------------------------------------------------------- contribution shape
 # Written once. scripts/enforce_contribution_policy.py, the issue templates and
@@ -102,10 +126,12 @@ commit_types = [
 commit_scopes = ["core", "cli", "app", "ci", "docs", "scripts", "benchmarks", "release"]
 
 # --------------------------------------------------------------- type checks
-# Scoped to src/ on purpose: that is the product. The scripts in scripts/ drive
-# git and pyinstaller and are checked by ruff, not by mypy.
+# src/ is the product; tools/ holds the lab's wiki generator, which `test` type-checks too.
+# The scripts in scripts/ drive git and pyinstaller and are checked by ruff, not by mypy.
 [tool.mypy]
-files = ["src"]
+files = ["src", "tools"]
+mypy_path = "src"
+explicit_package_bases = true
 python_version = "3.10"
 strict = true
 warn_unreachable = true
@@ -114,16 +140,17 @@ warn_unreachable = true
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests"]
-addopts = "-q --strict-markers --strict-config"
+python_files = "test_*.py"
+# The project is not installed (package = false), so the tests import it from src/.
+pythonpath = ["src"]
+addopts = "-q --strict-markers --strict-config --cov=src/quality_template --cov-branch --cov-report=term --cov-fail-under=91"
 markers = ["slow: takes more than a second"]
 
 [tool.coverage.run]
-source = ["src"]
+source = ["src/quality_template"]
 branch = true
 
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
-# Point 3: coverage is not decorative - the build fails below this line.
-fail_under = 85
 exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]
