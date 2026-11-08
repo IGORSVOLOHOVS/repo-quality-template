@@ -95,7 +95,10 @@ CHECKS: list[tuple[str, str | None]] = [
 
 
 def copy(rel: str, target: Path, force: bool, dry: bool) -> str:
-    src, dst = TEMPLATE / rel, target / rel
+    # template/ holds what this repository ships but does not run itself: its own
+    # root carries the lab's CONTRIBUTING.md and no .github/ (BEST_REQUIREMENTS §7).
+    shipped = TEMPLATE / "template" / rel
+    src, dst = (shipped if shipped.exists() else TEMPLATE / rel), target / rel
     if not src.exists():
         return f"MISSING IN TEMPLATE  {rel}"
     if dst.exists() and not force:
