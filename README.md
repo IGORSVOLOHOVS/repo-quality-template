@@ -1,11 +1,7 @@
 # Text Analyser
 
-[![CI](https://github.com/IGORSVOLOHOVS/repo-quality-template/actions/workflows/ci.yml/badge.svg)](https://github.com/IGORSVOLOHOVS/repo-quality-template/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/IGORSVOLOHOVS/repo-quality-template)](https://github.com/IGORSVOLOHOVS/repo-quality-template/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 
-Analyse a piece of text and report its statistics — word and sentence counts,
+Analyse a piece of text and report its statistics - word and sentence counts,
 lexical diversity, and the words that actually carry meaning. Use it from the
 terminal or in a desktop window.
 
@@ -22,28 +18,29 @@ another project, see [Reusing this layout](#reusing-this-layout).
 | ![The application window](docs/screenshots/application-window.png) | ![CLI output](docs/screenshots/cli-output.png) |
 
 Both images are regenerated from the real program by
-`python scripts/capture_usage_screenshots.py` — they cannot go stale silently.
+`python scripts/capture_usage_screenshots.py` - they cannot go stale silently.
 
 ---
 
 ## Install
 
-Download a ready-made build from
-[Releases](https://github.com/IGORSVOLOHOVS/repo-quality-template/releases/latest)
-— a single `.exe` on Windows, a `.zip` elsewhere. No Python needed. Every file
-ships a `.sha256` next to it.
+From source, with [uv](https://docs.astral.sh/uv/) and Python 3.10 or later:
 
-From source:
-
-```bash
-git clone https://github.com/IGORSVOLOHOVS/repo-quality-template
+```powershell
+git clone http://127.0.0.1:3000/igors-lab/repo-quality-template
 cd repo-quality-template
-python scripts/install_dependencies.py
-```
+.
+ecipe.ps1 test     # installs the pinned toolchain from uv.lock and runs every check
+.
+ecipe.ps1 build    # a wheel in dist```
+
+Details in [`docs/install.md`](docs/install.md).
 
 ---
 
 ## Use
+
+`.\recipe.ps1 run <arguments>` runs the CLI from the source tree; an installed wheel gives the `quality-template` command.
 
 ```bash
 # a file
@@ -92,7 +89,7 @@ most frequent words
 ## How it is built
 
 Three layers, dependencies pointing one way: a pure domain layer with no I/O,
-and two thin shells over it — a CLI and a tkinter window. Full reasoning,
+and two thin shells over it - a CLI and a tkinter window. Full reasoning,
 including what was deliberately left out, in
 [`docs/architecture.md`](docs/architecture.md).
 
@@ -110,9 +107,9 @@ python scripts/collect_quality_metrics.py
 
 | Control | Command | Enforced in CI |
 | --- | --- | --- |
-| Tests and coverage | `pytest --cov` | yes, fails below 85 % |
+| Tests and coverage | `pytest --cov` | yes, fails below 91 % |
 | Lint and format | `ruff check . && ruff format .` | yes |
-| Types | `mypy`, strict, over `src/` | yes |
+| Types | `mypy`, strict, over `src/` and `tools/` | yes |
 | Complexity ceiling | `ruff` rule `C90`, max 10 | yes |
 | Benchmarks | `pytest benchmarks --benchmark-only` | yes |
 | Profiling | `python scripts/profile_application.py` | on demand |
@@ -133,8 +130,8 @@ python scripts/collect_quality_metrics.py
 | `tokenise` on 500 paragraphs | 5.92 ms |
 | `analyse_text` on 500 paragraphs | 8.37 ms |
 
-Analysis is linear in input length — 50 → 500 paragraphs is 10× the input for
-10× the time — which is what the design predicts: one compiled regular
+Analysis is linear in input length - 50 → 500 paragraphs is 10× the input for
+10× the time - which is what the design predicts: one compiled regular
 expression over the text and a `Counter` over the result, with no caching layer
 to invalidate. Tokenising is 71 % of the total, so that regular expression is
 where any optimisation would have to start.
@@ -147,39 +144,33 @@ pytest benchmarks --benchmark-only
 
 ## How a change travels
 
-Issue, branch, commits, pull request, merge, release — and the first step is
+Issue, branch, commits, pull request, merge, release - and the first step is
 not optional, because the issue is where the acceptance criteria are written
-down. Full path in [`docs/workflow.md`](docs/workflow.md).
+down. This repository lives on the lab's Gitea, where `.
+ecipe.ps1 test` is
+the one check and `.gitea/workflows/` run it on every pull request. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ```bash
-gh issue create                        # acceptance criteria go in here
-git switch -c rqt-12/feat/slug dev
+git switch -c rqt-12/feat/slug origin/test
 git commit -s -m "feat(core): ..."
-python scripts/check_before_push.py
-git push -u origin HEAD
-gh pr create --base dev --fill         # the body says: Closes #12
+git push -u origin HEAD                # then a pull request into test: Closes #12
 ```
-
-Branch name, commit subjects, sign-off and the issue link are checked by
-`contribution-policy.yml`, so none of them costs a review comment.
 
 ## Branches
 
-Three long-lived branches — `release`, `dev`, `test` — plus short-lived work
-branches named `<code>-<issue>/<type>/<slug>`, deleted when their pull request
-merges. CI fails on anything else. See [`docs/branching.md`](docs/branching.md).
+This repository keeps two long-lived branches, `release` and `test`, plus
+short-lived work branches named `<code>-<issue>/<type>/<slug>`. The layout it
+ships still asks a target for three - `release`, `dev`, `test` - in
+`[tool.repo-quality]` and `scripts/enforce_branch_policy.py`; moving that rule
+to two branches is issue #5. See [`docs/branching.md`](docs/branching.md).
 
 ---
 
 ## Releasing
 
-```bash
-git checkout release && git merge --ff-only test
-git tag -a v1.2.0 -m "v1.2.0" && git push origin release --tags
-```
-
-The tag runs the tests, builds the executable and the zip, writes a SHA-256 for
-each and publishes a GitHub Release.
+`test` reaches `release` through one pull request that only the owner merges.
+`release-gate` judges it, and `release.yaml` runs on the merge.
 
 ---
 
@@ -190,8 +181,13 @@ python scripts/apply_template_to_repo.py --target ../some-project --dry-run
 python scripts/apply_template_to_repo.py --target ../some-project --apply
 ```
 
-It copies the infrastructure — workflows, issue and pull-request templates,
-lint config, scripts, licence — leaves the target's own source alone, never
+The workflows, the issue and pull-request templates and the template's own
+`CONTRIBUTING.md` live under `template/`, because this repository's root
+carries the lab's files instead; the script copies from `template/` where a
+file is there.
+
+It copies the infrastructure - workflows, issue and pull-request templates,
+lint config, scripts, licence - leaves the target's own source alone, never
 overwrites an existing file without `--force`, and prints which of the
 standard's twenty-four points the target now satisfies and which still need
 work by hand.
@@ -215,4 +211,4 @@ this project deliberately does not meet are argued, one by one, in
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE). Copyright (c) 2026 Igors Volohovs.
+MIT - see [`LICENSE`](LICENSE). Copyright (c) 2026 Igors Volohovs.
