@@ -212,3 +212,7 @@ this project deliberately does not meet are argued, one by one, in
 ## License
 
 MIT - see [`LICENSE`](LICENSE). Copyright (c) 2026 Igors Volohovs.
+
+## Lab requirements
+
+This repository complies with [revision 4.0.0](http://127.0.0.1:3000/igors-lab/software-requirements/src/tag/v4.0.0/BEST_REQUIREMENTS.md) of the lab requirements, except R-02 (#13), R-09 (#14), R-17 (#15), R-41 (#16), R-42 (#17).
