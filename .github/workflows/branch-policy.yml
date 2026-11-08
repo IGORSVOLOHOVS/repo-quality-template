@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   check:
-    name: Only release, dev and test may exist
+    name: Long-lived branches, and work branches with an issue number
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

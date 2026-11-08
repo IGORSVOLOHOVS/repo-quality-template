@@ -6,6 +6,49 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Issue templates with mandatory acceptance criteria, a pull-request template,
+  and `CODEOWNERS` - the shape of a contribution, in the place GitHub reads it.
+- `scripts/enforce_contribution_policy.py` and `contribution-policy.yml`:
+  branch grammar, commit format, sign-off and the issue link, checked before a
+  human is asked to read the diff.
+- `scripts/generate_sbom.py`: a CycloneDX bill of materials, attached to every
+  release with its own checksum.
+- Strict `mypy` over `src/`, in the lint job.
+- `.github/dependabot.yml`, weekly, for pip and for actions.
+- `CODE_OF_CONDUCT.md`.
+- `docs/workflow.md` - issue to release, six steps.
+- `docs/decisions.md` - the OpenSSF criteria this project deliberately does not
+  meet, each with its reason.
+- `docs/standards-comparison.md` - where the points came from, measured against
+  the OpenSSF Best Practices Badge and Scorecard.
+
+### Fixed
+
+- The branch policy rejected every branch Dependabot opened. Point 21 asks for
+  a bot that watches the dependencies and point 14 asks every branch to carry
+  an issue number; a bot can do neither, so switching Dependabot on turned
+  every pull request in the repository red. Bot prefixes are now a configured,
+  opt-in class, with tests for all four classifications.
+- `scripts/apply_template_to_repo.py` did not copy `check_before_push.py`, so a
+  target repository was told to run a file it had not been given.
+- The same script judged point 14 with its own copy of the rule, reading
+  `git branch -a` without pruning, and reported stray branches that had been
+  deleted when their pull request merged. It now calls
+  `enforce_branch_policy.py`, so there is one implementation.
+
+### Changed
+
+- The standard is twenty-four points, not fourteen.
+- Point 14 is now "three long-lived branches" rather than "three branches":
+  work happens on a short-lived `<code>-<issue>/<type>/<slug>` branch that is
+  deleted when its pull request merges. The old rule made a pull request
+  impossible, and with it the review gate.
+- `scripts/apply_template_to_repo.py` copies the new infrastructure and reports
+  all twenty-four points.
+
+
 ## [1.0.0] - 2026-08-01
 
 ### Added
