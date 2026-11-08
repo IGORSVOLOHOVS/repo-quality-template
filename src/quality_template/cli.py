@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from quality_template import __version__
-from quality_template.core import analyse_text, top_words
+from quality_template.core import TextStats, analyse_text, top_words
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -43,7 +43,7 @@ def read_input(path: Path | None) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
 
 
-def render_table(stats, words) -> str:
+def render_table(stats: TextStats, words: list[tuple[str, int]]) -> str:
     lines = [
         f"{'characters':<22}{stats.characters}",
         f"{'words':<22}{stats.words}",
