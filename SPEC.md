@@ -6,6 +6,33 @@ implements. Inferences are labelled. Claims that the code does not back are
 listed in §3.8. Questions the code cannot answer are in §9. The documentation
 hub is [`docs/README.md`](docs/README.md).
 
+<!-- jira-sync:start -->
+Jira: KAN-79
+
+## Tasks
+
+This list is one ticket in Jira project KAN, [KAN-79](https://igorsvolohovs.atlassian.net/browse/KAN-79). Each line is a checkbox there: tick it in Jira and the sync ticks it here; add a checkbox there and it is appended here. Done items are the features described in section 3; open items are what the project declares but the code does not do yet.
+
+- [x] Text analysis (domain layer, `src/quality_template/core.py`) (section 3.1) <!-- spec-text-analysis-domain-layer-src-qualitytemplate-cor -->
+- [x] Command-line interface (`src/quality_template/cli.py`) (section 3.2) <!-- spec-command-line-interface-src-qualitytemplate-cli-py -->
+- [x] Desktop window (`src/quality_template/app.py`) (section 3.3) <!-- spec-desktop-window-src-qualitytemplate-app-py -->
+- [x] Contribution and branch policies (section 3.4) <!-- spec-contribution-and-branch-policies -->
+- [x] Local pre-push check (`scripts/check_before_push.py`) (section 3.5) <!-- spec-local-pre-push-check-scripts-checkbeforepush-py -->
+- [x] Quality, packaging and SBOM (section 3.6) <!-- spec-quality-packaging-and-sbom -->
+- [x] Layout transfer, screenshots, workflow audit, CI/CD (section 3.7) <!-- spec-layout-transfer-screenshots-workflow-audit-ci-cd -->
+- [ ] `apply_template_to_repo.py … --dry-run` (declared, not implemented) <!-- spec-applytemplatetorepo-py-dry-run -->
+- [ ] `--skip-exe`: "package sources only" (declared, not implemented) <!-- spec-skip-exe-package-sources-only -->
+- [ ] Manual release run with input `version` (declared, not implemented) <!-- spec-manual-release-run-with-input-version -->
+- [ ] "the screenshot step in CI" (declared, not implemented) <!-- spec-the-screenshot-step-in-ci -->
+- [ ] Screenshots "cannot go stale silently" (declared, not implemented) <!-- spec-screenshots-cannot-go-stale-silently -->
+- [ ] "a non-positive `--top` is rejected explicitly" (declared, not implemented) <!-- spec-a-non-positive-top-is-rejected-explicitly -->
+- [ ] `.env.example` "carries names only" (declared, not implemented) <!-- spec-env-example-carries-names-only -->
+- [ ] "Tags are signed — `git tag -s`" (declared, not implemented) <!-- spec-tags-are-signed-git-tag-s -->
+- [ ] README sample output for `docs/sample.txt` (declared, not implemented) <!-- spec-readme-sample-output-for-docs-sample-txt -->
+- [ ] Open OpenSSF items: `release_notes_vulns`, `know_secure_design`, `know_common_errors` (declared, not implemented) <!-- spec-open-openssf-items-releasenotesvulns-knowsecuredes -->
+
+<!-- jira-sync:end -->
+
 ## 1. Purpose and scope
 
 The repository contains:
